@@ -13,8 +13,12 @@ public:
 	ClothConstraint(class ClothParticle* _particleA, ClothParticle* _particleB);
 	~ClothConstraint();
 
+	void Update(float _DeltaTime);
+
 private:
 
 	ClothParticle* ParticleA = nullptr;
 	ClothParticle* ParticleB = nullptr;
+
+	float RestingDistance;
 };

@@ -4,6 +4,7 @@
 #include "Cloth.h"
 #include "ClothParticle.h"
 #include "ClothConstraint.h"
+#include "ProceduralMeshComponent.h"
 #include "KismetProceduralMeshLibrary.h"
 
 // Sets default values
@@ -28,6 +29,29 @@ void ACloth::BeginPlay()
 	CreateConstraints();
 
     GenerateMesh();
+
+    GetWorldTimerManager().SetTimer(UpdateTimer, this, &ACloth::Update, TimeStep, true);
+}
+
+void ACloth::Destroyed()
+{
+    for (int Vert = 0; Vert < Particles.Num(); Vert++)
+    {
+        for (int Horz = 0; Horz < Particles[Vert].Num(); Horz++)
+        {
+            delete Particles[Vert][Horz];
+        }
+    }
+
+    for (auto iter : Constraints)
+    {
+        delete iter;
+    }
+
+    Particles.Empty();
+    Constraints.Empty();
+
+	Super::Destroyed();
 }
 
 // Called every frame
@@ -35,6 +59,7 @@ void ACloth::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+    GenerateMesh();
 }
 
 void ACloth::CreateParticles()
@@ -96,7 +121,6 @@ void ACloth::GenerateMesh()
     ClothVertices.Reset();
     ClothTriangles.Reset();
     ClothNormals.Reset();
-    ClothTangents.Reset();
     ClothUVs.Reset();
     ClothColors.Reset();
 
@@ -119,6 +143,8 @@ void ACloth::GenerateMesh()
                 Vert * NumHorzParticles + Horz);
         }
     }
+
+    TArray<FProcMeshTangent> ClothTangents;
 
     UKismetProceduralMeshLibrary::CalculateTangentsForMesh(ClothVertices, ClothTriangles, ClothUVs, ClothNormals, ClothTangents);
 
@@ -158,6 +184,15 @@ void ACloth::TryCreateTriangles(ClothParticle* _topLeft, ClothParticle* _topRigh
             ClothTriangles.Add(BottomRightIndex);
             ClothTriangles.Add(TopLeftIndex);
         }
+    }
+}
+
+void ACloth::Update()
+{
+    // Update all constraints
+    for (auto iter : Constraints)
+    {
+        iter->Update(TimeStep);
     }
 }
  

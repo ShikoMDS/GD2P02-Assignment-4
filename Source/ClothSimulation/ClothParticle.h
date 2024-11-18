@@ -21,6 +21,8 @@ public:
 
 	FVector GetPosition();
 
+	void OffsetPosition(FVector _offset);
+
 private:
 
 	FVector Position = { 0, 0, 0 };

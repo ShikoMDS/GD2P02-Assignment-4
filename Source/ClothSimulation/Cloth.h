@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ProceduralMeshComponent.h"
 #include "GameFramework/Actor.h"
 #include "Cloth.generated.h"
 
@@ -22,6 +21,8 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
+	virtual void Destroyed() override;
+
 	void CreateParticles();
 	void CreateConstraints();
 
@@ -30,8 +31,10 @@ protected:
 	void TryCreateTriangles(ClothParticle* _topLeft, ClothParticle* _topRight,
 		ClothParticle* _bottomLeft, ClothParticle* _bottomRight, int _topLeftIndex);
 
+	void Update();
+
 	UPROPERTY(EditDefaultsOnly, Category = Mesh)
-		UProceduralMeshComponent* ClothMesh = nullptr;
+		class UProceduralMeshComponent* ClothMesh = nullptr;
 
 	UPROPERTY(EditDefaultsOnly, Category = Mesh)
 		UMaterial* ClothMaterial = nullptr;
@@ -39,7 +42,6 @@ protected:
 	TArray<FVector> ClothVertices;
 	TArray<int32> ClothTriangles;
 	TArray<FVector> ClothNormals;
-	TArray<FProcMeshTangent> ClothTangents;
 	TArray<FVector2D> ClothUVs;
 	TArray<FLinearColor> ClothColors;
 
@@ -65,6 +67,8 @@ protected:
 	float HorzDist; // ClothWidth / NumHorzParticles
 	float VertDist;
 
+	FTimerHandle UpdateTimer;
+	float TimeStep = 0.016f; // 60FPS
 
 public:	
 	// Called every frame
