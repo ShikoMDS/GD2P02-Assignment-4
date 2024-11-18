@@ -7,6 +7,7 @@
 ClothParticle::ClothParticle(FVector _position)
 {
 	Position = _position;
+	OldPosition = Position;
 }
 
 ClothParticle::~ClothParticle()
@@ -36,6 +37,16 @@ TArray<ClothConstraint*> ClothParticle::GetConstraints()
 	return Constraints;
 }
 
+bool ClothParticle::GetPinned()
+{
+	return IsPinned;
+}
+
+void ClothParticle::SetPinned(bool _Pin)
+{
+	IsPinned = _Pin;
+}
+
 FVector ClothParticle::GetPosition()
 {
 	return Position;
@@ -44,4 +55,29 @@ FVector ClothParticle::GetPosition()
 void ClothParticle::OffsetPosition(FVector _offset)
 {
 	Position += _offset;
+}
+
+void ClothParticle::AddAcceleration(FVector _Force)
+{
+	if (!GetPinned())
+	{
+		Acceleration += _Force;
+	}
+}
+
+void ClothParticle::Update(float _DeltaTime)
+{
+	FVector cachedPosition = Position;
+
+	if (OldDeltaTime <= 0.0f)
+	{
+		OldDeltaTime = _DeltaTime;
+	}
+
+	Position = Position + ((Position - OldPosition) * (_DeltaTime / OldDeltaTime)) +
+		(Acceleration * _DeltaTime * ((_DeltaTime + OldDeltaTime) * 0.5f));
+
+	OldPosition = cachedPosition;
+	Acceleration = { 0, 0, 0 };
+	OldDeltaTime = _DeltaTime;
 }

@@ -19,12 +19,23 @@ public:
 
 	TArray<class ClothConstraint*> GetConstraints();
 
+	bool GetPinned();
+	void SetPinned(bool _Pin);
+
 	FVector GetPosition();
 
 	void OffsetPosition(FVector _offset);
 
+	void AddAcceleration(FVector _Force);
+
+	void Update(float _DeltaTime);
+
 private:
 
 	FVector Position = { 0, 0, 0 };
+	FVector OldPosition = { 0, 0, 0 };
+	float OldDeltaTime = -1.0f;
+	FVector Acceleration = { 0, 0, 0 };
 	TArray<class ClothConstraint*> Constraints;
+	bool IsPinned = false;
 };

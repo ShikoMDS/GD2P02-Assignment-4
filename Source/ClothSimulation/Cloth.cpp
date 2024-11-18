@@ -79,6 +79,10 @@ void ACloth::CreateParticles()
         {
             FVector ParticlePos = { StartPos.X + Horz * HorzDist, StartPos.Y, StartPos.Z - Vert * VertDist };
             ClothParticle* NewParticle = new ClothParticle(ParticlePos);
+
+            bool shouldPin = Vert == 0 && Horz % 5 == 0;
+            NewParticle->SetPinned(shouldPin);
+
             ParticleRow.Add(NewParticle);
         }
 
@@ -189,10 +193,29 @@ void ACloth::TryCreateTriangles(ClothParticle* _topLeft, ClothParticle* _topRigh
 
 void ACloth::Update()
 {
-    // Update all constraints
-    for (auto iter : Constraints)
+    float iterationTimeStep = TimeStep / (float)UpdateSteps;
+    // Iterate over the particles some number of times
+    for (int i = 0; i < UpdateSteps; i++)
     {
-        iter->Update(TimeStep);
+	    // Update all constraints
+    	for (auto iter : Constraints)
+    	{
+    		iter->Update(TimeStep);
+    	}
+
+    	// Update all particles
+    	for (int Vert = 0; Vert < Particles.Num(); Vert++)
+    	{
+    		for (int Horz = 0; Horz < Particles[Vert].Num(); Horz++)
+    		{
+    			int index = Horz + Particles[Vert].Num() * Vert;
+    			FVector windForce = {2, 10, 0};
+    			float dotProduct = FVector::DotProduct(ClothNormals[index], windForce);
+    			Particles[Vert][Horz]->AddAcceleration({ 0, 0, -100});
+    			Particles[Vert][Horz]->AddAcceleration(windForce * abs(dotProduct));
+    			Particles[Vert][Horz]->Update(TimeStep);
+    		}
+    	}
     }
 }
  
