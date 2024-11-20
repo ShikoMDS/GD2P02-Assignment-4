@@ -57,16 +57,19 @@ void ClothParticle::OffsetPosition(FVector _offset)
 	Position += _offset;
 }
 
-void ClothParticle::AddAcceleration(FVector _Force)
+void ClothParticle::AddForce(FVector _Force)
 {
-	if (!GetPinned())
-	{
 		Acceleration += _Force;
-	}
 }
 
 void ClothParticle::Update(float _DeltaTime)
 {
+	if (GetPinned() || OnGround)
+	{
+		Acceleration = {0, 0, 0};
+		return;
+	}
+
 	FVector cachedPosition = Position;
 
 	if (OldDeltaTime <= 0.0f)
@@ -74,10 +77,38 @@ void ClothParticle::Update(float _DeltaTime)
 		OldDeltaTime = _DeltaTime;
 	}
 
-	Position = Position + ((Position - OldPosition) * (_DeltaTime / OldDeltaTime)) +
-		(Acceleration * _DeltaTime * ((_DeltaTime + OldDeltaTime) * 0.5f));
+	/*
+	// Framerate independent verlet integration
+	Position = Position + 
+		((Position - OldPosition) * ((1.0f - Damping) * (_DeltaTime / OldDeltaTime))) +
+		(Acceleration * _DeltaTime * ((_DeltaTime + OldDeltaTime) * 0.5f)); 
+	*/
+	
+	// Non-framerate independent
+	Position = Position +
+		(Position - OldPosition) * (1.0f - Damping * _DeltaTime) + 
+		Acceleration * _DeltaTime;
+	
+
+	Acceleration = { 0, 0, 0 };
 
 	OldPosition = cachedPosition;
-	Acceleration = { 0, 0, 0 };
 	OldDeltaTime = _DeltaTime;
+}
+
+void ClothParticle::CheckForGroundCollision(float _groundHeight)
+{
+	if (Position.Z <= _groundHeight + 1)
+	{
+		OnGround = true;
+
+		if (Position.Z <= _groundHeight)
+		{
+			Position.Z = _groundHeight;
+		}
+	}
+	else
+	{
+		OnGround = false;
+	}
 }

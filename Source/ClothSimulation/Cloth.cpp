@@ -35,21 +35,7 @@ void ACloth::BeginPlay()
 
 void ACloth::Destroyed()
 {
-    for (int Vert = 0; Vert < Particles.Num(); Vert++)
-    {
-        for (int Horz = 0; Horz < Particles[Vert].Num(); Horz++)
-        {
-            delete Particles[Vert][Horz];
-        }
-    }
-
-    for (auto iter : Constraints)
-    {
-        delete iter;
-    }
-
-    Particles.Empty();
-    Constraints.Empty();
+    CleanUp();
 
 	Super::Destroyed();
 }
@@ -58,6 +44,8 @@ void ACloth::Destroyed()
 void ACloth::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+    CalculateWindVector();
 
     GenerateMesh();
 }
@@ -80,8 +68,9 @@ void ACloth::CreateParticles()
             FVector ParticlePos = { StartPos.X + Horz * HorzDist, StartPos.Y, StartPos.Z - Vert * VertDist };
             ClothParticle* NewParticle = new ClothParticle(ParticlePos);
 
-            bool shouldPin = Vert == 0 && Horz % 5 == 0;
-            NewParticle->SetPinned(shouldPin);
+            // Pin top row only, always pin left and right most particle, pin every sixth
+            bool Pinned = Vert == 0 && (Horz == 0 || Horz == NumHorzParticles - 1 || Horz % 6 == 0);
+            NewParticle->SetPinned(Pinned);
 
             ParticleRow.Add(NewParticle);
         }
@@ -155,8 +144,78 @@ void ACloth::GenerateMesh()
     ClothMesh->CreateMeshSection_LinearColor(0, ClothVertices, ClothTriangles, ClothNormals, ClothUVs, ClothColors, ClothTangents, false);
 }
 
+void ACloth::CheckForCollision()
+{
+    for (int Vert = 0; Vert < NumVertParticles; Vert++)
+    {
+        TArray<ClothParticle*> ParticleRow;
+
+        for (int Horz = 0; Horz < NumHorzParticles; Horz++)
+        {
+            // Check for ground collision
+            Particles[Vert][Horz]->CheckForGroundCollision(GroundHeight - ClothMesh->GetComponentLocation().Z + 1);
+
+            // Check for sphere collision
+
+            // Check for capsule collision
+        }
+    }
+
+}
+
+void ACloth::CleanUp()
+{
+    for (int Vert = 0; Vert < Particles.Num(); Vert++)
+    {
+        for (int Horz = 0; Horz < Particles[Vert].Num(); Horz++)
+        {
+            delete Particles[Vert][Horz];
+        }
+    }
+
+    for (auto iter : Constraints)
+    {
+        delete iter;
+    }
+
+    Particles.Empty();
+    Constraints.Empty();
+}
+
+void ACloth::ResetCloth()
+{
+    CleanUp();
+
+    CreateParticles();
+    CreateConstraints();
+}
+
+FVector ACloth::GetParticleNormal(int _XIndex, int _YIndex)
+{
+    return ClothNormals[_XIndex + _YIndex * NumHorzParticles];
+}
+
+void ACloth::CalculateWindVector()
+{
+    WindVector = WindRotation.Vector();
+
+    WindVector.Normalize();
+
+    float WindStrength = FMath::Lerp(200.0f, 1000.0f, (FMath::Sin(GetGameTimeSinceCreation() * WindOscillationFrequency) + 1.0f) * 0.5f);
+    float WindStrength2 = FMath::Lerp(200.0f, 1000.0f, (FMath::Sin(GetGameTimeSinceCreation() * WindOscillationFrequency2) + 1.0f) * 0.5f);
+    WindVector *= (WindStrength + WindStrength2);
+}
+
+void ACloth::ReleaseCloth()
+{
+    for (int Horz = 0; Horz < NumHorzParticles; Horz++)
+    {
+        Particles[0][Horz]->SetPinned(false);
+    }
+}
+
 void ACloth::TryCreateTriangles(ClothParticle* _topLeft, ClothParticle* _topRight, ClothParticle* _bottomLeft,
-	ClothParticle* _bottomRight, int _topLeftIndex)
+                                ClothParticle* _bottomRight, int _topLeftIndex)
 {
     int TopLeftIndex = _topLeftIndex;
     int TopRightIndex = _topLeftIndex + 1;
@@ -193,6 +252,53 @@ void ACloth::TryCreateTriangles(ClothParticle* _topLeft, ClothParticle* _topRigh
 
 void ACloth::Update()
 {
+    float iterationTimeStep = TimeStep / (float)VerletIntegrationIterations;
+    float divStep = 1.0f / (float)VerletIntegrationIterations;
+
+    // Iterating particle first
+    
+    // Update all particles
+    for (int Vert = 0; Vert < NumVertParticles; Vert++)
+    {
+        TArray<ClothParticle*> ParticleRow;
+
+        for (int Horz = 0; Horz < NumHorzParticles; Horz++)
+        {
+            // Apply gravity to each particle (we could consider mass too)
+            Particles[Vert][Horz]->AddForce(FVector(0.0f, 0.0f, -981.0f * 1.0f * TimeStep));
+
+            // Apply wind
+            FVector ParticleNormal = GetParticleNormal(Horz, Vert);
+
+            FVector NormalWind = WindVector;
+            NormalWind.Normalize();
+
+            // Abs dot product so what matters is we're perpendicular
+            float WindAlignment = FMath::Abs(NormalWind.Dot(ParticleNormal));
+
+            Particles[Vert][Horz]->AddForce(WindVector * WindAlignment * TimeStep);
+
+            Particles[Vert][Horz]->Update(TimeStep);
+        }
+    }
+
+    // Iterating constraints second 
+    for (int i = 0; i < VerletIntegrationIterations; i++)
+    {
+	    // Update all constraints
+    	for (auto iter : Constraints)
+    	{
+    		iter->Update(divStep);
+    	}
+    }
+
+    // Check for collision
+    CheckForCollision();
+}
+
+/*
+void ACloth::Update()
+{
     float iterationTimeStep = TimeStep / (float)UpdateSteps;
     // Iterate over the particles some number of times
     for (int i = 0; i < UpdateSteps; i++)
@@ -211,11 +317,11 @@ void ACloth::Update()
     			int index = Horz + Particles[Vert].Num() * Vert;
     			FVector windForce = {2, 10, 0};
     			float dotProduct = FVector::DotProduct(ClothNormals[index], windForce);
-    			Particles[Vert][Horz]->AddAcceleration({ 0, 0, -100});
-    			Particles[Vert][Horz]->AddAcceleration(windForce * abs(dotProduct));
+    			Particles[Vert][Horz]->AddForce({ 0, 0, -100});
+    			Particles[Vert][Horz]->AddForce(windForce * abs(dotProduct));
     			Particles[Vert][Horz]->Update(TimeStep);
     		}
     	}
     }
 }
- 
+*/

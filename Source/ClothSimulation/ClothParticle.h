@@ -26,9 +26,11 @@ public:
 
 	void OffsetPosition(FVector _offset);
 
-	void AddAcceleration(FVector _Force);
+	void AddForce(FVector _Force);
 
 	void Update(float _DeltaTime);
+
+	void CheckForGroundCollision(float _groundHeight);
 
 private:
 
@@ -38,4 +40,6 @@ private:
 	FVector Acceleration = { 0, 0, 0 };
 	TArray<class ClothConstraint*> Constraints;
 	bool IsPinned = false;
+	float Damping = 0.0f;
+	bool OnGround = false;
 };

@@ -17,6 +17,12 @@ public:
 	// Sets default values for this actor's properties
 	ACloth();
 
+	UFUNCTION(BlueprintCallable, Category = "Cloth | Functions")
+	void ReleaseCloth();
+
+	UFUNCTION(BlueprintCallable, Category = "Cloth | Functions")
+	void ResetCloth();
+	
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -27,6 +33,14 @@ protected:
 	void CreateConstraints();
 
 	void GenerateMesh();
+
+	void CheckForCollision();
+
+	void CleanUp();
+
+	FVector GetParticleNormal(int _XIndex, int _YIndex);
+
+	void CalculateWindVector();
 
 	void TryCreateTriangles(ClothParticle* _topLeft, ClothParticle* _topRight,
 		ClothParticle* _bottomLeft, ClothParticle* _bottomRight, int _topLeftIndex);
@@ -67,8 +81,25 @@ protected:
 	float HorzDist; // ClothWidth / NumHorzParticles
 	float VertDist;
 
-	UPROPERTY(EditDefaultsOnly, Category = Cloth)
-	int UpdateSteps = 1;
+
+	// Simulation Properties
+	UPROPERTY(EditDefaultsOnly, Category = Simulation)
+	FVector WindVector = { 100.0f, 2000.0f, 100.0f };
+
+	UPROPERTY(EditDefaultsOnly, Category = Simulation)
+	FRotator WindRotation = { 0, 0, 0 };
+
+	UPROPERTY(EditDefaultsOnly, Category = Simulation)
+	float WindOscillationFrequency = 3.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category = Simulation)
+	float WindOscillationFrequency2 = 2.27f;
+
+	UPROPERTY(EditDefaultsOnly, Category = Simulation)
+	int VerletIntegrationIterations = 1;
+
+	UPROPERTY(EditDefaultsOnly, Category = Simulation)
+	float GroundHeight = 0.0f;
 
 	FTimerHandle UpdateTimer;
 	float TimeStep = 0.016f; // 60FPS
