@@ -24,6 +24,8 @@ public:
 
 	FVector GetPosition();
 
+	void SetPosition(FVector _NewPos);
+
 	void OffsetPosition(FVector _offset);
 
 	void AddForce(FVector _Force);

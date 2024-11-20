@@ -68,8 +68,25 @@ void ACloth::CreateParticles()
             FVector ParticlePos = { StartPos.X + Horz * HorzDist, StartPos.Y, StartPos.Z - Vert * VertDist };
             ClothParticle* NewParticle = new ClothParticle(ParticlePos);
 
-            // Pin top row only, always pin left and right most particle, pin every sixth
-            bool Pinned = Vert == 0 && (Horz == 0 || Horz == NumHorzParticles - 1 || Horz % 6 == 0);
+            // Pin top row only, always pin left and right most particle, pin every particle until desired hooks
+            int NumInteriorHooks = NumHooks - 2;
+
+            bool ShouldPin = false;
+            for (int i = 0; i < NumInteriorHooks; i++)
+            {
+                float Percent = 1.0f / (NumInteriorHooks + 1);
+                Percent *= i + 1;
+                Percent *= NumHorzParticles - 1;
+                int PinnedIndex = FMath::RoundToInt(Percent);
+
+                if (PinnedIndex == Horz)
+                {
+                    ShouldPin = true;
+                    break;
+                }
+            }
+
+            bool Pinned = Vert == 0 && (Horz == 0 || Horz == NumHorzParticles - 1 || ShouldPin);
             NewParticle->SetPinned(Pinned);
 
             ParticleRow.Add(NewParticle);
@@ -190,6 +207,27 @@ void ACloth::ResetCloth()
     CreateConstraints();
 }
 
+void ACloth::ConstrictCloth(float _constrictedAmount)
+{
+    float constrictedWidth = ClothWidth * _constrictedAmount;
+    float constrictedDist = constrictedWidth / (NumHorzParticles - 1);
+
+    FVector StartPos(0);
+    StartPos.X = -constrictedWidth / 2;
+    StartPos.Z = ClothHeight / 2;
+
+    for (int Horz = 0; Horz < NumHorzParticles; Horz++)
+    {
+        FVector ParticlePos = { StartPos.X + Horz * constrictedDist, StartPos.Y, StartPos.Z };
+
+        if (Particles[0][Horz]->GetPinned())
+        {
+            Particles[0][Horz]->SetPosition(ParticlePos);
+        }
+    }
+
+}
+
 FVector ACloth::GetParticleNormal(int _XIndex, int _YIndex)
 {
     return ClothNormals[_XIndex + _YIndex * NumHorzParticles];
@@ -203,7 +241,7 @@ void ACloth::CalculateWindVector()
 
     float WindStrength = FMath::Lerp(200.0f, 1000.0f, (FMath::Sin(GetGameTimeSinceCreation() * WindOscillationFrequency) + 1.0f) * 0.5f);
     float WindStrength2 = FMath::Lerp(200.0f, 1000.0f, (FMath::Sin(GetGameTimeSinceCreation() * WindOscillationFrequency2) + 1.0f) * 0.5f);
-    WindVector *= (WindStrength + WindStrength2);
+    WindVector *= (WindStrength + WindStrength2) * WindMultiplier;
 }
 
 void ACloth::ReleaseCloth()

@@ -52,6 +52,11 @@ FVector ClothParticle::GetPosition()
 	return Position;
 }
 
+void ClothParticle::SetPosition(FVector _NewPos)
+{
+	Position = _NewPos;
+}
+
 void ClothParticle::OffsetPosition(FVector _offset)
 {
 	Position += _offset;

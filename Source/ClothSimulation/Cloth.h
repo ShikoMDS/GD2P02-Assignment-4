@@ -22,6 +22,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Cloth | Functions")
 	void ResetCloth();
+
+	UFUNCTION(BlueprintCallable, Category = "Cloth | Functions")
+	void ConstrictCloth(float _constrictedAmount);
 	
 protected:
 	// Called when the game starts or when spawned
@@ -78,6 +81,12 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = Cloth)
 	int NumVertParticles = 30;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = Cloth)
+	float ConstrictedWidth = 200.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = Cloth)
+	int NumHooks = 6;
+
 	float HorzDist; // ClothWidth / NumHorzParticles
 	float VertDist;
 
@@ -100,6 +109,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = Simulation)
 	float GroundHeight = 0.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = Simulation)
+	float WindMultiplier = 1.0f;
 
 	FTimerHandle UpdateTimer;
 	float TimeStep = 0.016f; // 60FPS
