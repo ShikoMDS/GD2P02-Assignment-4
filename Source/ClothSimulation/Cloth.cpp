@@ -153,7 +153,7 @@ void ACloth::CheckForCollision()
         for (int Horz = 0; Horz < NumHorzParticles; Horz++)
         {
             // Check for ground collision
-            Particles[Vert][Horz]->CheckForGroundCollision(GroundHeight - ClothMesh->GetComponentLocation().Z + 1);
+            Particles[Vert][Horz]->CheckForGroundCollision(GroundHeight - ClothMesh->GetComponentLocation().Z);
 
             // Check for sphere collision
 

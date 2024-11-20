@@ -83,10 +83,10 @@ protected:
 
 
 	// Simulation Properties
-	UPROPERTY(EditDefaultsOnly, Category = Simulation)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Simulation)
 	FVector WindVector = { 100.0f, 2000.0f, 100.0f };
 
-	UPROPERTY(EditDefaultsOnly, Category = Simulation)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = Simulation)
 	FRotator WindRotation = { 0, 0, 0 };
 
 	UPROPERTY(EditDefaultsOnly, Category = Simulation)
