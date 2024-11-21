@@ -15,10 +15,25 @@ public:
 
 	void Update(float _DeltaTime);
 
+	void SetInterwoven(bool _interwoven);
+	bool GetIsInterwoven();
+
+	void DisableConstraint();
+
+	bool IsEnabled();
+
+	void SetAssociatedInterwovenConstraint(ClothConstraint* _constraint);
+
 private:
 
 	ClothParticle* ParticleA = nullptr;
 	ClothParticle* ParticleB = nullptr;
 
+	ClothConstraint* InterwovenConstraint = nullptr;
+
 	float RestingDistance;
+
+	bool IsInterwoven = false;
+
+	bool Enabled = true;
 };

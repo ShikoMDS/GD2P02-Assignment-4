@@ -52,9 +52,19 @@ FVector ClothParticle::GetPosition()
 	return Position;
 }
 
+FVector ClothParticle::GetOldPosition()
+{
+	return OldPosition;
+}
+
 void ClothParticle::SetPosition(FVector _NewPos)
 {
 	Position = _NewPos;
+}
+
+void ClothParticle::SetVelocity(FVector _newVelocity)
+{
+	Velocity = _newVelocity;
 }
 
 void ClothParticle::OffsetPosition(FVector _offset)
@@ -115,5 +125,28 @@ void ClothParticle::CheckForGroundCollision(float _groundHeight)
 	else
 	{
 		OnGround = false;
+	}
+}
+
+void ClothParticle::AddBurn(float _burnAmount)
+{
+	BurnAmount = FMath::Clamp(BurnAmount + _burnAmount, 0.0f, 1.0f);
+}
+
+float ClothParticle::GetBurn()
+{
+	return BurnAmount;
+}
+
+void ClothParticle::RemoveConstraint(ClothConstraint* _constraint)
+{
+	Constraints.Remove(_constraint);
+}
+
+void ClothParticle::DeleteFirstConstraint()
+{
+	if (Constraints.Num() > 0)
+	{
+		Constraints[0]->DisableConstraint();
 	}
 }

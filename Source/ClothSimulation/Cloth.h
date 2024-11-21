@@ -63,10 +63,13 @@ protected:
 	TArray<FLinearColor> ClothColors;
 
 	// The grid of particles
-	TArray<TArray<class ClothParticle*>> Particles;
+	TArray<TArray<ClothParticle*>> Particles;
 
 	// The list of all constraints
 	TArray<class ClothConstraint*> Constraints;
+
+	// Contains list of randomised indices of constraints
+	TArray<int> ShuffledConstraintIndices;
 
 	// Cloth properties:
 	UPROPERTY(EditDefaultsOnly, Category = Cloth)
@@ -113,8 +116,28 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = Simulation)
 	float WindMultiplier = 1.0f;
 
+	UPROPERTY(EditDefaultsOnly, Category = Simulation)
+	bool InitialiseRandomConstraintOrder = false;
+
+	UPROPERTY(EditDefaultsOnly, Category = Simulation)
+	bool UseRandomConstraintOrder = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = Simulation)
+	bool SimulateInterwovenConstraints = true;
+
 	FTimerHandle UpdateTimer;
 	float TimeStep = 0.016f; // 60FPS
+
+	UPROPERTY()
+	class AClothSphere* Sphere = nullptr;
+
+	void ShuffleConstraintIndices();
+
+	UFUNCTION(BlueprintCallable)
+	void AddRandomBurn();
+
+	UFUNCTION(BlueprintCallable)
+	void DeleteRandomConstraint();
 
 public:	
 	// Called every frame

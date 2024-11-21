@@ -24,7 +24,11 @@ public:
 
 	FVector GetPosition();
 
+	FVector GetOldPosition();
+
 	void SetPosition(FVector _NewPos);
+
+	void SetVelocity(FVector _newVelocity);
 
 	void OffsetPosition(FVector _offset);
 
@@ -33,6 +37,14 @@ public:
 	void Update(float _DeltaTime);
 
 	void CheckForGroundCollision(float _groundHeight);
+
+	void AddBurn(float _burnAmount);
+
+	float GetBurn();
+
+	void RemoveConstraint(ClothConstraint*);
+
+	void DeleteFirstConstraint();
 
 private:
 
@@ -44,4 +56,6 @@ private:
 	bool IsPinned = false;
 	float Damping = 0.0f;
 	bool OnGround = false;
+	float BurnAmount = 0.0f;
+	FVector Velocity = {0, 0, 0};
 };

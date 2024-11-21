@@ -19,6 +19,8 @@ ClothConstraint::~ClothConstraint()
 
 void ClothConstraint::Update(float _DeltaTime)
 {
+    if (!Enabled) return;
+
     FVector CurrentOffset = ParticleB->GetPosition() - ParticleA->GetPosition();
 
     /*
@@ -52,4 +54,34 @@ void ClothConstraint::Update(float _DeltaTime)
         //ParticleB->AddAcceleration(-force);
     }
 
+}
+
+void ClothConstraint::SetInterwoven(bool _interwoven)
+{
+    IsInterwoven = _interwoven;
+}
+
+bool ClothConstraint::GetIsInterwoven()
+{
+    return IsInterwoven;
+}
+
+void ClothConstraint::DisableConstraint()
+{
+    ParticleA->RemoveConstraint(this);
+    ParticleB->RemoveConstraint(this);
+
+    if (InterwovenConstraint) InterwovenConstraint->DisableConstraint();
+
+    Enabled = false;
+}
+
+bool ClothConstraint::IsEnabled()
+{
+    return Enabled;
+}
+
+void ClothConstraint::SetAssociatedInterwovenConstraint(ClothConstraint* _constraint)
+{
+    InterwovenConstraint = _constraint;
 }

@@ -4,6 +4,8 @@
 #include "Cloth.h"
 #include "ClothParticle.h"
 #include "ClothConstraint.h"
+#include "ClothSphere.h"
+#include "Kismet/GameplayStatics.h"
 #include "ProceduralMeshComponent.h"
 #include "KismetProceduralMeshLibrary.h"
 
@@ -25,6 +27,14 @@ void ACloth::BeginPlay()
 
     ClothMesh->SetMaterial(0, ClothMaterial);
 
+    // Find sphere
+    TArray<AActor*> FoundActors;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), AClothSphere::StaticClass(), FoundActors);
+    if (FoundActors.Num() > 0)
+    {
+        Sphere = Cast<AClothSphere>(FoundActors[0]);
+    }
+
 	CreateParticles();
 	CreateConstraints();
 
@@ -38,6 +48,41 @@ void ACloth::Destroyed()
     CleanUp();
 
 	Super::Destroyed();
+}
+
+void ACloth::ShuffleConstraintIndices()
+{
+    for (int i = ShuffledConstraintIndices.Num() - 1; i > 0; i--)
+    {
+        int j = FMath::FloorToInt(FMath::SRand() * (i + 1)) % Constraints.Num();
+
+        int temp = ShuffledConstraintIndices[i];
+        ShuffledConstraintIndices[i] = ShuffledConstraintIndices[j];
+        ShuffledConstraintIndices[j] = temp;
+    }
+
+}
+
+void ACloth::AddRandomBurn()
+{
+    int iRandHorz = FMath::RandRange(0, NumHorzParticles - 1);
+    int iRandVert = FMath::RandRange(0, NumVertParticles - 1);
+
+    Particles[iRandVert][iRandHorz]->AddBurn(0.25f);
+
+}
+
+void ACloth::DeleteRandomConstraint()
+{
+    /*
+    int iRandom = FMath::RandRange(0, Constraints.Num() - 1);
+
+    Constraints[iRandom]->DisableConstraint();
+    */
+    int iRandHorz = FMath::RandRange(0, NumHorzParticles - 1);
+    int iRandVert = 10;
+
+    Particles[iRandVert][iRandHorz]->DeleteFirstConstraint();
 }
 
 // Called every frame
@@ -98,10 +143,29 @@ void ACloth::CreateParticles()
 
 void ACloth::CreateConstraints()
 {
+    // Clear old array of constraint indices
+    ShuffledConstraintIndices.Empty();
+
+    int ConstraintIndex = 0;
+
     for (int Vert = 0; Vert < NumVertParticles; Vert++)
     {
         for (int Horz = 0; Horz < NumHorzParticles; Horz++)
         {
+            ClothConstraint* VerticalInterwoven = nullptr;
+
+            if (Vert < NumVertParticles - 2)
+            {
+                // Make a vertical interwoven constraint
+                VerticalInterwoven = new ClothConstraint(Particles[Vert][Horz], Particles[Vert + 2][Horz]);
+
+                // Set as an interwoven constraint
+                VerticalInterwoven->SetInterwoven(true);
+
+                ShuffledConstraintIndices.Add(ConstraintIndex);
+                ConstraintIndex++;
+            }
+
             if (Vert < NumVertParticles - 1)
             {
                 // Make a vertical constraint
@@ -110,6 +174,32 @@ void ACloth::CreateConstraints()
 
                 Particles[Vert][Horz]->AddConstraint(NewConstraint);
                 Particles[Vert + 1][Horz]->AddConstraint(NewConstraint);
+
+                if (VerticalInterwoven)
+                {
+                    NewConstraint->SetAssociatedInterwovenConstraint(VerticalInterwoven);
+                    Constraints.Add(VerticalInterwoven);
+
+                    Particles[Vert][Horz]->AddConstraint(VerticalInterwoven);
+                    Particles[Vert + 2][Horz]->AddConstraint(VerticalInterwoven);
+                }
+
+                ShuffledConstraintIndices.Add(ConstraintIndex);
+                ConstraintIndex++;
+            }
+
+            ClothConstraint* HorziontalInterwoven = nullptr;
+
+            if (Horz < NumHorzParticles - 2)
+            {
+                // Make a horizontal interwoven constraint
+                HorziontalInterwoven = new ClothConstraint(Particles[Vert][Horz], Particles[Vert][Horz + 2]);
+
+                // Set as an interwoven constraint
+                HorziontalInterwoven->SetInterwoven(true);
+
+                ShuffledConstraintIndices.Add(ConstraintIndex);
+                ConstraintIndex++;
             }
 
             if (Horz < NumHorzParticles - 1)
@@ -120,10 +210,26 @@ void ACloth::CreateConstraints()
 
                 Particles[Vert][Horz]->AddConstraint(NewConstraint);
                 Particles[Vert][Horz + 1]->AddConstraint(NewConstraint);
+
+                if (HorziontalInterwoven)
+                {
+                    NewConstraint->SetAssociatedInterwovenConstraint(HorziontalInterwoven);
+                    Constraints.Add(HorziontalInterwoven);
+
+                    Particles[Vert][Horz]->AddConstraint(HorziontalInterwoven);
+                    Particles[Vert][Horz + 2]->AddConstraint(HorziontalInterwoven);
+                }
+
+                ShuffledConstraintIndices.Add(ConstraintIndex);
+                ConstraintIndex++;
             }
         }
     }
 
+    if (InitialiseRandomConstraintOrder)
+    {
+        ShuffleConstraintIndices();
+    }
 }
 
 void ACloth::GenerateMesh()
@@ -139,7 +245,11 @@ void ACloth::GenerateMesh()
         for (int Horz = 0; Horz < NumHorzParticles; Horz++)
         {
             ClothVertices.Add(Particles[Vert][Horz]->GetPosition());
-            ClothColors.Add(FLinearColor::Black);
+
+            // For vertex colour use burn amount
+            FLinearColor ParticleColour(Particles[Vert][Horz]->GetBurn(), 0.0f, 0.0f, 0.0f);
+            ClothColors.Add(ParticleColour);
+
             ClothUVs.Add(FVector2D(float(Horz) / (NumHorzParticles - 1), float(Vert) / (NumVertParticles - 1)));
         }
     }
@@ -169,12 +279,35 @@ void ACloth::CheckForCollision()
 
         for (int Horz = 0; Horz < NumHorzParticles; Horz++)
         {
-            // Check for ground collision
-            Particles[Vert][Horz]->CheckForGroundCollision(GroundHeight - ClothMesh->GetComponentLocation().Z);
-
             // Check for sphere collision
+            if (Sphere)
+            {
+                FVector SphereCenter = Sphere->GetActorLocation();
+                float SphereRadius = Sphere->GetCollisionRadius(); 
+
+                ClothParticle* Particle = Particles[Vert][Horz];
+                FVector ParticlePosition = Particle->GetPosition();
+
+                FVector Offset = ParticlePosition - SphereCenter;
+                float Distance = Offset.Size();
+
+                if (Distance < SphereRadius)
+                {
+                    FVector Correction = Offset.GetSafeNormal() * (SphereRadius - Distance);
+                    Particle->SetPosition(ParticlePosition + Correction);
+
+                    // Apply velocity dampening to simulate realistic collision response
+                    FVector Velocity = Particle->GetPosition() - Particle->GetOldPosition();
+                    Velocity *= 0.8f;
+                    Particle->SetVelocity(Velocity);
+                    UE_LOG(LogTemp, Warning, TEXT("Collision detected for particle at %s"), *Particle->GetPosition().ToString());
+                }
+            }
 
             // Check for capsule collision
+
+            // Check for ground collision
+            Particles[Vert][Horz]->CheckForGroundCollision(GroundHeight - ClothMesh->GetComponentLocation().Z);
         }
     }
 
@@ -293,73 +426,55 @@ void ACloth::Update()
     float iterationTimeStep = TimeStep / (float)VerletIntegrationIterations;
     float divStep = 1.0f / (float)VerletIntegrationIterations;
 
-    // Iterating particle first
-    
-    // Update all particles
-    for (int Vert = 0; Vert < NumVertParticles; Vert++)
-    {
-        TArray<ClothParticle*> ParticleRow;
-
-        for (int Horz = 0; Horz < NumHorzParticles; Horz++)
-        {
-            // Apply gravity to each particle (we could consider mass too)
-            Particles[Vert][Horz]->AddForce(FVector(0.0f, 0.0f, -981.0f * 1.0f * TimeStep));
-
-            // Apply wind
-            FVector ParticleNormal = GetParticleNormal(Horz, Vert);
-
-            FVector NormalWind = WindVector;
-            NormalWind.Normalize();
-
-            // Abs dot product so what matters is we're perpendicular
-            float WindAlignment = FMath::Abs(NormalWind.Dot(ParticleNormal));
-
-            Particles[Vert][Horz]->AddForce(WindVector * WindAlignment * TimeStep);
-
-            Particles[Vert][Horz]->Update(TimeStep);
-        }
-    }
-
-    // Iterating constraints second 
+    // Iteratively process particles and constraints
     for (int i = 0; i < VerletIntegrationIterations; i++)
     {
-	    // Update all constraints
-    	for (auto iter : Constraints)
-    	{
-    		iter->Update(divStep);
-    	}
+        // Update all particles
+        for (int Vert = 0; Vert < NumVertParticles; Vert++)
+        {
+            for (int Horz = 0; Horz < NumHorzParticles; Horz++)
+            {
+                // Apply gravity to each particle (considering mass if needed)
+                Particles[Vert][Horz]->AddForce(FVector(0.0f, 0.0f, -981.0f * iterationTimeStep));
+
+                // Apply wind
+                FVector ParticleNormal = GetParticleNormal(Horz, Vert);
+
+                FVector NormalWind = WindVector;
+                NormalWind.Normalize();
+
+                // Abs dot product so what matters is alignment with the normal
+                float WindAlignment = FMath::Abs(NormalWind.Dot(ParticleNormal));
+
+                Particles[Vert][Horz]->AddForce(WindVector * WindAlignment * iterationTimeStep);
+
+                // Update particle position
+                Particles[Vert][Horz]->Update(iterationTimeStep);
+            }
+        }
+
+        // Check for collisions after updating particles
+        CheckForCollision();
+
+        // Shuffle constraints if needed
+        if (UseRandomConstraintOrder && i == 0) // Shuffle only once per update call
+        {
+            ShuffleConstraintIndices();
+        }
+
+        // Update all constraints
+        for (int j = 0; j < ShuffledConstraintIndices.Num(); j++)
+        {
+            // Skip interwoven constraints if not simulating them
+            if (Constraints[ShuffledConstraintIndices[j]]->GetIsInterwoven() && !SimulateInterwovenConstraints)
+            {
+                continue;
+            }
+
+            Constraints[ShuffledConstraintIndices[j]]->Update(divStep);
+        }
+
+        // Check collisions again after constraints to ensure stability
+        CheckForCollision();
     }
-
-    // Check for collision
-    CheckForCollision();
 }
-
-/*
-void ACloth::Update()
-{
-    float iterationTimeStep = TimeStep / (float)UpdateSteps;
-    // Iterate over the particles some number of times
-    for (int i = 0; i < UpdateSteps; i++)
-    {
-	    // Update all constraints
-    	for (auto iter : Constraints)
-    	{
-    		iter->Update(TimeStep);
-    	}
-
-    	// Update all particles
-    	for (int Vert = 0; Vert < Particles.Num(); Vert++)
-    	{
-    		for (int Horz = 0; Horz < Particles[Vert].Num(); Horz++)
-    		{
-    			int index = Horz + Particles[Vert].Num() * Vert;
-    			FVector windForce = {2, 10, 0};
-    			float dotProduct = FVector::DotProduct(ClothNormals[index], windForce);
-    			Particles[Vert][Horz]->AddForce({ 0, 0, -100});
-    			Particles[Vert][Horz]->AddForce(windForce * abs(dotProduct));
-    			Particles[Vert][Horz]->Update(TimeStep);
-    		}
-    	}
-    }
-}
-*/
